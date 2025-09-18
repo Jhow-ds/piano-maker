@@ -64,10 +64,10 @@
 
   <!-- Botão de download -->
   <button
-    onclick="downloadArduino()"
+    onclick="window.location.href='https://app.arduino.cc/sketches/123ecbe3-f229-485d-ae2a-1cad055b4a86?view-mode=preview';"
     class="mt-6 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 transition"
   >
-    📥 Baixar Código Arduino
+    📥 Código Arduino
   </button>
 
   <script>
@@ -139,53 +139,6 @@
       }
     }
 
-    // Baixar código Arduino
-    function downloadArduino() {
-      const arduinoCode = `const int teclas[] = {2, 3, 4, 5, 6, 7, 8}; // Dó a Si
-const int numTeclas = 7;
-
-bool estadoAnterior[7];
-unsigned long ultimoTempo[7];
-const unsigned long debounce = 20; // 20 ms
-
-void setup() {
-  Serial.begin(9600);
-
-  for (int i = 0; i < numTeclas; i++) {
-    pinMode(teclas[i], INPUT_PULLUP);   // agora com pull-up interno
-    estadoAnterior[i] = HIGH;           // solto no início
-    ultimoTempo[i] = 0;
-  }
-}
-
-void loop() {
-  for (int i = 0; i < numTeclas; i++) {
-    int leitura = digitalRead(teclas[i]);
-
-    if (leitura != estadoAnterior[i]) {
-      if (millis() - ultimoTempo[i] > debounce) {
-        estadoAnterior[i] = leitura;
-        ultimoTempo[i] = millis();
-
-        if (leitura == LOW) {
-          Serial.print("ON:");
-          Serial.println(i);
-        } else {
-          Serial.print("OFF:");
-          Serial.println(i);
-        }
-      }
-    }
-  }
-}`;
-      const blob = new Blob([arduinoCode], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "pianoGame.ino";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
   </script>
 
   <!-- Botão de conectar Arduino -->
@@ -197,4 +150,5 @@ void loop() {
   </button>
 </body>
 </html>
+
 
