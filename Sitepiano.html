@@ -1,0 +1,199 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Piano Maker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .key {
+      width: 60px;
+      height: 200px;
+      border: 1px solid black;
+      background: white;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .key.active {
+      background: #60a5fa; /* Azul quando ativa */
+      color: white;
+    }
+    #falling-notes {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 200px;
+      pointer-events: none;
+    }
+    .note {
+      position: absolute;
+      width: 60px;
+      height: 20px;
+      border-radius: 6px;
+      opacity: 0.8;
+      animation: fall linear;
+    }
+    @keyframes fall {
+      from { top: -20px; }
+      to { top: 200px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen text-white">
+
+  <h1 class="text-3xl font-bold mb-6">🎹 Piano Maker</h1>
+
+  <!-- Área do piano -->
+  <div class="relative">
+    <div id="falling-notes"></div>
+    <div id="piano" class="flex">
+      <div class="key" data-note="0">Dó</div>
+      <div class="key" data-note="1">Ré</div>
+      <div class="key" data-note="2">Mi</div>
+      <div class="key" data-note="3">Fá</div>
+      <div class="key" data-note="4">Sol</div>
+      <div class="key" data-note="5">Lá</div>
+      <div class="key" data-note="6">Si</div>
+    </div>
+  </div>
+
+  <!-- Botão de download -->
+  <button
+    onclick="downloadArduino()"
+    class="mt-6 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 transition"
+  >
+    📥 Baixar Código Arduino
+  </button>
+
+  <script>
+    const keys = document.querySelectorAll(".key");
+    const fallingArea = document.getElementById("falling-notes");
+
+    // Sons das notas (coloque seus arquivos mp3 na pasta sounds/)
+    const sounds = [
+      new Audio("sounds/C.mp3"),
+      new Audio("sounds/D.mp3"),
+      new Audio("sounds/E.mp3"),
+      new Audio("sounds/F.mp3"),
+      new Audio("sounds/G.mp3"),
+      new Audio("sounds/A.mp3"),
+      new Audio("sounds/B.mp3"),
+    ];
+
+    // Ativar tecla e som
+    function playNote(i) {
+      if (!sounds[i]) return;
+      sounds[i].currentTime = 0;
+      sounds[i].play();
+      keys[i].classList.add("active");
+      setTimeout(() => keys[i].classList.remove("active"), 200);
+    }
+
+    // Clique no teclado com mouse
+    keys.forEach((key, i) => {
+      key.addEventListener("mousedown", () => playNote(i));
+    });
+
+    // Simulação de "piano tiles"
+    function dropNote(i) {
+      const note = document.createElement("div");
+      note.className = "note";
+      note.style.left = `${i * 60}px`;
+      note.style.background = ["#f87171","#fbbf24","#34d399","#60a5fa","#a78bfa","#f472b6","#fb923c"][i];
+      note.style.animationDuration = "2s";
+      fallingArea.appendChild(note);
+
+      note.addEventListener("animationend", () => {
+        fallingArea.removeChild(note);
+      });
+    }
+
+    // Arduino → Web Serial
+    async function connectArduino() {
+      try {
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 9600 });
+        const reader = port.readable.getReader();
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            const text = new TextDecoder().decode(value).trim();
+            console.log("Arduino:", text);
+
+            if (text.startsWith("ON:")) {
+              const index = parseInt(text.split(":")[1]);
+              playNote(index);
+              dropNote(index);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao conectar:", err);
+      }
+    }
+
+    // Baixar código Arduino
+    function downloadArduino() {
+      const arduinoCode = `const int teclas[] = {2, 3, 4, 5, 6, 7, 8}; // Dó a Si
+const int numTeclas = 7;
+
+bool estadoAnterior[7];
+unsigned long ultimoTempo[7];
+const unsigned long debounce = 20; // 20 ms
+
+void setup() {
+  Serial.begin(9600);
+
+  for (int i = 0; i < numTeclas; i++) {
+    pinMode(teclas[i], INPUT_PULLUP);   // agora com pull-up interno
+    estadoAnterior[i] = HIGH;           // solto no início
+    ultimoTempo[i] = 0;
+  }
+}
+
+void loop() {
+  for (int i = 0; i < numTeclas; i++) {
+    int leitura = digitalRead(teclas[i]);
+
+    if (leitura != estadoAnterior[i]) {
+      if (millis() - ultimoTempo[i] > debounce) {
+        estadoAnterior[i] = leitura;
+        ultimoTempo[i] = millis();
+
+        if (leitura == LOW) {
+          Serial.print("ON:");
+          Serial.println(i);
+        } else {
+          Serial.print("OFF:");
+          Serial.println(i);
+        }
+      }
+    }
+  }
+}`;
+      const blob = new Blob([arduinoCode], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pianoGame.ino";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+
+  <!-- Botão de conectar Arduino -->
+  <button
+    onclick="connectArduino()"
+    class="mt-4 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition"
+  >
+    🎵 Conectar Arduino
+  </button>
+</body>
+</html>
